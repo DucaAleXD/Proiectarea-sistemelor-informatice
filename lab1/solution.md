@@ -155,7 +155,6 @@ flowchart LR
 
     F -->|"Returnează prețuri și date de piață<br/>sau nu răspunde (caz de defectare)"| D
 
-    D -->|"Furnizează informații despre erori,<br/>starea sistemului și comportamentul<br/>funcționalităților pentru depanare și mentenanță"| E
 ```
 
 
