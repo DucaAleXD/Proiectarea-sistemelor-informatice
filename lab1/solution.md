@@ -12,12 +12,13 @@ piață și ce părți aparțin primei versiuni a acestui Dashboard?
 Decizie de domeniu de aplicare influențată de cercetare: Dashboard-ul preia din Google Finance separarea watchlist/portofoliu ca model central al primei versiuni. Modelul de alerte din TradingView este util, dar prea complex pentru MVP (necesită job-uri de fundal și notificări) — devine un obiectiv exclus explicit, nu o presupunere ascunsă.
 
 ## 2. Părți interesate și actori.
-| Parte interesată | Motivație | Influență | Motiv |
-|---|---|---|---|
-| Investitor (Utilizator) | Ridicată | Scăzută | Depinde direct de produs pentru a-și vedea portofoliul, dar nu decide roadmap-ul |
-| Furnizor de date de piață | Scăzută | Ridicată | Nu îi pasă de succesul Dashboard-ului, dar poate opri accesul la API sau schimba limitele |
-| Proprietarul produsului | Ridicată | Ridicată | Decide domeniul de aplicare, prioritățile și bugetul |
-| Autoritatea de reglementare a pieței financiare | Scăzută | Ridicată | Nu folosește produsul, dar poate impune reguli despre afișarea datelor financiare |
+| Parte interesată                                | Motivație | Influență | Motiv                                                                                                                          |
+| ----------------------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Investitor (Utilizator)                         | Ridicată  | Scăzută   | Depinde direct de produs pentru a-și vedea portofoliul, dar nu decide roadmap-ul                                               |
+| Furnizor de date de piață                       | Scăzută   | Ridicată  | Nu îi pasă de succesul Dashboard-ului, dar poate opri accesul la API sau schimba limitele                                      |
+| Proprietarul produsului                         | Ridicată  | Ridicată  | Decide domeniul de aplicare, prioritățile și bugetul                                                                           |
+| Autoritatea de reglementare a pieței financiare | Scăzută   | Ridicată  | Nu folosește produsul, dar poate impune reguli despre afișarea datelor financiare                                              |
+| Echipa de dezvoltare                            | Ridicată  | Ridicată  | Implementează funcționalitățile, asigură calitatea produsului și influențează direct soluțiile tehnice și ritmul de dezvoltare |
 
 | Motivație | Influență scăzută | Influență ridicată |
 |---|---|---|
@@ -26,7 +27,7 @@ Decizie de domeniu de aplicare influențată de cercetare: Dashboard-ul preia di
 
 | Candidat | Parte interesată? | Actor direct? | Motiv |
 |---|---|---|---|
-| Investitor | Da | Da | Adaugă poziții, citește prețuri și valoarea portofoliului |
+| Investitor(Utilizator) | Da | Da | Adaugă poziții, citește prețuri și valoarea portofoliului |
 | Furnizor de date de piață | Da | Da (sistem extern) | Furnizează prețuri curente la cerere |
 | Proprietarul produsului | Da | Nu | Ia decizii despre produs, dar nu interacționează cu fluxul |
 | Autoritatea de reglementare | Da | Nu | Poate impune limite, dar nu folosește direct Dashboard-ul |
@@ -131,12 +132,33 @@ Decizie de domeniu de aplicare influențată de cercetare: Dashboard-ul preia di
 
 **Descrierea relațiilor:**
 
-| De la                      | Către                      | Scop                                                                                                   |
-| ---------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Investitor                    | Dashboard                     | Adaugă/editează poziții deținute și simboluri de watchlist                                                |
-| Dashboard                     | Investitor                    | Arată valoarea portofoliului, câștig/pierdere, prețuri curente și starea datelor (curent/învechit/indisponibil) |
-| Dashboard                     | Furnizor de date de piață     | Solicită prețul curent și variația zilnică pentru simbolurile din portofoliu și watchlist                 |
-| Furnizor de date de piață     | Dashboard                     | Returnează prețuri și date de piață, sau nu răspunde (caz de defectare)                                    |
+| De la                     | Către                     | Scop                                                                                                                     |
+| ------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Investitor                | Dashboard                 | Adaugă/editează poziții deținute și simboluri de watchlist                                                               |
+| Dashboard                 | Investitor                | Arată valoarea portofoliului, câștig/pierdere, prețuri curente și starea datelor (curent/învechit/indisponibil)          |
+| Dashboard                 | Furnizor de date de piață | Solicită prețul curent și variația zilnică pentru simbolurile din portofoliu și watchlist                                |
+| Furnizor de date de piață | Dashboard                 | Returnează prețuri și date de piață sau nu răspunde (caz de defectare)                                                   |
+| Echipa de dezvoltare      | Dashboard                 | Implementează, testează și menține funcționalitățile Dashboard-ului, precum și remediază problemele tehnice              |
+| Dashboard                 | Echipa de dezvoltare      | Furnizează informații despre erori, starea sistemului și comportamentul funcționalităților pentru depanare și mentenanță |
+
+flowchart LR
+    I["Investitor<br/>(Utilizator)"]
+    D["Dashboard"]
+    F["Furnizor de date<br/>de piață"]
+    P["Proprietarul produsului"]
+    R["Autoritatea de reglementare<br/>a pieței financiare"]
+    E["Echipa de dezvoltare"]
+
+    I -->|"Adaugă / editează poziții<br/>și simboluri watchlist"| D
+    D -->|"Afișează valoarea portofoliului,<br/>câștig/pierdere, prețuri curente<br/>și starea datelor"| I
+
+    D -->|"Solicită prețul curent<br/>și variația zilnică"| F
+    F -->|"Returnează prețuri și date de piață<br/>sau nu răspunde (defectare)"| D
+
+    P -->|"Definește domeniul,<br/>prioritățile și bugetul"| D
+    R -->|"Impune reguli privind<br/>afișarea datelor financiare"| D
+    D -->|"Necesită implementare,<br/>mentenanță și soluții tehnice"| E
+    E -->|"Dezvoltă și menține<br/>funcționalitățile Dashboard-ului"| D
 
 **Limita sistemului:**
 
