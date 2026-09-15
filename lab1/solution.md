@@ -138,8 +138,7 @@ Decizie de domeniu de aplicare influențată de cercetare: Dashboard-ul preia di
 | Dashboard                 | Investitor                | Arată valoarea portofoliului, câștig/pierdere, prețuri curente și starea datelor (curent/învechit/indisponibil)          |
 | Dashboard                 | Furnizor de date de piață | Solicită prețul curent și variația zilnică pentru simbolurile din portofoliu și watchlist                                |
 | Furnizor de date de piață | Dashboard                 | Returnează prețuri și date de piață sau nu răspunde (caz de defectare)                                                   |
-| Echipa de dezvoltare      | Dashboard                 | Implementează, testează și menține funcționalitățile Dashboard-ului, precum și remediază problemele tehnice              |
-| Dashboard                 | Echipa de dezvoltare      | Furnizează informații despre erori, starea sistemului și comportamentul funcționalităților pentru depanare și mentenanță |
+
 
 ```mermaid
 flowchart LR
