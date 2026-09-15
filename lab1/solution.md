@@ -146,7 +146,6 @@ flowchart LR
     I["Investitor"]
     D["Dashboard"]
     F["Furnizor de date<br/>de piață"]
-    E["Echipa de dezvoltare"]
 
     I -->|"Adaugă/editează poziții deținute<br/>și simboluri de watchlist"| D
 
@@ -155,8 +154,6 @@ flowchart LR
     D -->|"Solicită prețul curent și variația zilnică<br/>pentru simbolurile din portofoliu și watchlist"| F
 
     F -->|"Returnează prețuri și date de piață<br/>sau nu răspunde (caz de defectare)"| D
-
-    E -->|"Implementează, testează și menține<br/>funcționalitățile Dashboard-ului<br/>și remediază problemele tehnice"| D
 
     D -->|"Furnizează informații despre erori,<br/>starea sistemului și comportamentul<br/>funcționalităților pentru depanare și mentenanță"| E
 ```
