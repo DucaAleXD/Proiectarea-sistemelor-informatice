@@ -120,7 +120,7 @@ Decizie de domeniu de aplicare influențată de cercetare: Dashboard-ul preia di
 
 ---
 
-## 5. C4 System Context view
+## 5. C4 System Context view!
 
 **Sistemul de interes:** Personal Investment Dashboard
 
@@ -141,6 +141,7 @@ Decizie de domeniu de aplicare influențată de cercetare: Dashboard-ul preia di
 | Echipa de dezvoltare      | Dashboard                 | Implementează, testează și menține funcționalitățile Dashboard-ului, precum și remediază problemele tehnice              |
 | Dashboard                 | Echipa de dezvoltare      | Furnizează informații despre erori, starea sistemului și comportamentul funcționalităților pentru depanare și mentenanță |
 
+```mermaid
 flowchart LR
     I["Investitor<br/>(Utilizator)"]
     D["Dashboard"]
@@ -159,6 +160,8 @@ flowchart LR
     R -->|"Impune reguli privind<br/>afișarea datelor financiare"| D
     D -->|"Necesită implementare,<br/>mentenanță și soluții tehnice"| E
     E -->|"Dezvoltă și menține<br/>funcționalitățile Dashboard-ului"| D
+```
+
 
 **Limita sistemului:**
 
