@@ -143,24 +143,24 @@ Decizie de domeniu de aplicare influențată de cercetare: Dashboard-ul preia di
 
 ```mermaid
 flowchart LR
-    I["Investitor<br/>(Utilizator)"]
+    I["Investitor"]
     D["Dashboard"]
     F["Furnizor de date<br/>de piață"]
-    P["Proprietarul produsului"]
-    R["Autoritatea de reglementare<br/>a pieței financiare"]
     E["Echipa de dezvoltare"]
 
-    I -->|"Adaugă / editează poziții<br/>și simboluri watchlist"| D
-    D -->|"Afișează valoarea portofoliului,<br/>câștig/pierdere, prețuri curente<br/>și starea datelor"| I
+    I -->|"Adaugă/editează poziții deținute<br/>și simboluri de watchlist"| D
 
-    D -->|"Solicită prețul curent<br/>și variația zilnică"| F
-    F -->|"Returnează prețuri și date de piață<br/>sau nu răspunde (defectare)"| D
+    D -->|"Arată valoarea portofoliului,<br/>câștig/pierdere, prețuri curente<br/>și starea datelor"| I
 
-    P -->|"Definește domeniul,<br/>prioritățile și bugetul"| D
-    R -->|"Impune reguli privind<br/>afișarea datelor financiare"| D
-    D -->|"Necesită implementare,<br/>mentenanță și soluții tehnice"| E
-    E -->|"Dezvoltă și menține<br/>funcționalitățile Dashboard-ului"| D
+    D -->|"Solicită prețul curent și variația zilnică<br/>pentru simbolurile din portofoliu și watchlist"| F
+
+    F -->|"Returnează prețuri și date de piață<br/>sau nu răspunde (caz de defectare)"| D
+
+    E -->|"Implementează, testează și menține<br/>funcționalitățile Dashboard-ului<br/>și remediază problemele tehnice"| D
+
+    D -->|"Furnizează informații despre erori,<br/>starea sistemului și comportamentul<br/>funcționalităților pentru depanare și mentenanță"| E
 ```
+
 
 
 **Limita sistemului:**
