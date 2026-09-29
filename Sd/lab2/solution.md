@@ -178,6 +178,10 @@ tranzacționat la bursă, ce deține un coș de active)
   acțiuni preferențiale, ETF-uri și fonduri — motivul e coerent cu obiectivul
   exclus deja stabilit (fără consolidare pe mai multe clase de active în
   prima versiune).
+- **Indici bursieri** (S&P 500, Nasdaq Composite, Dow Jones etc.): **excluși**
+  din prima versiune. Dashboard-ul urmărește doar acțiuni individuale, deci nu
+  stocăm și nu afișăm valori de indice. Nu se confundă cu indexurile bazei de
+  date (vezi finalul secțiunii 4).
 - **Instrumente delistate/inactive:** excluse din domeniul de aplicare
   acceptat. O poziție dintr-un Watchlist al cărei simbol este delistat arată
   „indisponibil", nu date istorice înghețate.
@@ -225,6 +229,109 @@ date intraday.
 292,837,500 B / 1,048,576 ~= 279.3 MiB  (~0.27 GiB)
 ```
 
+### Exemplu verificabil: un singur Stock (AAPL, Nasdaq)
+
+**Bursa aleasă:** piața **americană (SUA)**, adică **NYSE și Nasdaq** (vezi
+„Decizii de domeniu de aplicare"). Exemplul folosește AAPL, listat pe
+**Nasdaq**. Indicii bursieri (S&P 500 etc.) nu sunt incluși.
+
+Ca să se vadă de unde vin cifrele „octeți per înregistrare" din tabelul de mai
+sus, calculăm stocarea pentru **un singur Stock** și apoi o înmulțim cu 5,700.
+
+**Notă:** valorile din coloana „Exemplu" sunt **ilustrative** (nu sunt date
+reale de piață). Contează structura câmpurilor și dimensiunea lor, nu cifrele
+exacte.
+
+**De unde vin datele (sursa):** toate câmpurile vin de la **Furnizorul** de date
+de piață (sistem extern, vezi System Context din Laboratorul 1), cu excepția
+`stock_id`, care e un identificator intern al Dashboard-ului. Datele de
+referință și cele pentru Filter se resincronizează o dată pe zi; ultimul preț se
+resincronizează când depășește pragul de 20 de minute; istoricul primește un
+punct nou pe zi (vezi „Definește datele sincronizate").
+
+**De unde vin dimensiunile (ipoteză):** fiecare câmp numeric, dată sau timestamp
+= **8 B**; câmpurile text = lungimea maximă bugetată; la final se adaugă o mică
+**rezervă/overhead** (metadate, aliniere) ca totalul să dea dimensiunea
+rotunjită din tabelul principal. Sunt estimări din tipul câmpurilor, nu
+măsurători ale unei baze de date reale.
+
+**1. Date de referință Stock — 150 B**
+
+| Câmp             | Exemplu (AAPL)                     | Sursă     | Octeți |
+| ------------------ | ----------------------------------- | ----------- | -------- |
+| `stock_id`         | 1042                                | intern      | 8        |
+| `symbol`           | AAPL                                | Furnizor    | 8        |
+| `company_name`     | Apple Inc.                          | Furnizor    | 60       |
+| `exchange`         | NASDAQ                              | Furnizor    | 8        |
+| `sector/industry`  | Technology / Consumer Electronics   | Furnizor    | 40       |
+| `currency`         | USD                                 | Furnizor    | 4        |
+| `status`           | activ                               | Furnizor    | 1        |
+| `listing_date`     | 1980-12-12                          | Furnizor    | 8        |
+| overhead/rezervă   | –                                   | estimare    | 13       |
+| **Total**          |                                     |             | **150**  |
+
+**2. Cel mai recent preț — 80 B** (1 înregistrare, suprascrisă la fiecare sincronizare)
+
+| Câmp             | Exemplu (AAPL)        | Sursă     | Octeți |
+| ------------------ | ---------------------- | ----------- | -------- |
+| `stock_id`         | 1042                   | intern      | 8        |
+| `last_price`       | 230.00                 | Furnizor    | 8        |
+| `change_abs`       | +1.15                  | Furnizor    | 8        |
+| `change_pct`       | +0.50%                 | Furnizor    | 8        |
+| `provider_time`    | 2026-09-29 10:15 ET    | Furnizor    | 8        |
+| `sync_time`        | 2026-09-29 10:30 ET    | intern      | 8        |
+| `delay_label`      | „întârziat 15 min"     | intern      | 16       |
+| overhead/rezervă   | –                      | estimare    | 16       |
+| **Total**          |                        |             | **80**   |
+
+**3. Price history — 70 B per punct** (1 punct OHLCV pe zi)
+
+| Câmp             | Exemplu (o zi)   | Sursă     | Octeți |
+| ------------------ | ----------------- | ----------- | -------- |
+| `stock_id`         | 1042              | intern      | 8        |
+| `date`             | 2026-09-28        | Furnizor    | 8        |
+| `open`             | 228.90            | Furnizor    | 8        |
+| `high`             | 231.40            | Furnizor    | 8        |
+| `low`              | 228.10            | Furnizor    | 8        |
+| `close`            | 229.85            | Furnizor    | 8        |
+| `volume`           | 48,200,000        | Furnizor    | 8        |
+| overhead/rezervă   | –                 | estimare    | 14       |
+| **Total**          |                   |             | **70**   |
+
+**4. Alte date (Filter) — 45 B**
+
+| Câmp             | Exemplu (AAPL)       | Sursă     | Octeți |
+| ------------------ | --------------------- | ----------- | -------- |
+| `stock_id`         | 1042                  | intern      | 8        |
+| `market_cap`       | 3,450,000,000,000     | Furnizor    | 8        |
+| `week52_low`       | 169.20                | Furnizor    | 8        |
+| `week52_high`      | 237.50                | Furnizor    | 8        |
+| `avg_volume`       | 52,000,000            | Furnizor    | 8        |
+| overhead/rezervă   | –                     | estimare    | 5        |
+| **Total**          |                       |             | **45**   |
+
+**Calculul pentru un singur Stock:**
+
+```text
+Date de referință  = 1 x 150 B                 =        150 B
+Ultimul preț       = 1 x 80 B                  =         80 B
+Price history      = 730 zile x 1 punct x 70 B =     51,100 B
+Alte date (Filter) = 1 x 45 B                  =         45 B
+--------------------------------------------------------------
+Total per Stock                                =     51,375 B  (~50.2 KiB)
+```
+
+**Verificare încrucișată cu tabelul principal** (același rezultat, obținut din
+exemplu):
+
+```text
+5,700 Stocks x 51,375 B = 292,837,500 B   (= totalul din tabelul de mai sus)
+```
+
+Se vede și aici că **Price history** domină: 51,100 B din 51,375 B per Stock
+(~99.46%), pentru că e singurul set de date care se înmulțește cu numărul de
+zile păstrate (730).
+
 Price history reprezintă ~99.4% din stocarea brută (291,270,000 /
 292,837,500). Cu o fereastră de păstrare fixă de 730 de zile și purjarea
 punctelor mai vechi, stocarea de istoric se stabilizează în jur de 280 MiB și
@@ -232,9 +339,12 @@ nu crește nelimitat — creșterea zilnică netă este de doar `5,700 x 70 B` =
 399,000 B (~0.38 MiB) adăugați, echilibrați de purjarea punctelor mai vechi
 de 730 de zile odată ce fereastra e plină.
 
-Această estimare exclude indexurile, replicile, jurnalele, copiile de
-siguranță și datele proprii ale Utilizatorului (conturi, Watchlist-uri) — nu
-este un plan de cumpărare a stocării.
+Această estimare exclude **indexurile bazei de date** (structurile care
+accelerează Search și Filter, de exemplu pe `symbol` sau `company_name`),
+replicile, jurnalele, copiile de siguranță și datele proprii ale Utilizatorului
+(conturi, Watchlist-uri) — nu este un plan de cumpărare a stocării. Acestea nu au
+legătură cu **indicii bursieri** (S&P 500 etc.), care sunt în afara domeniului
+de aplicare al primei versiuni.
 
 ---
 
