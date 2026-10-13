@@ -1,157 +1,115 @@
-# Laborator 3: Desenează limita Dashboard-ului
+# Laboratorul 3: Desenează limita Dashboard-ului — Soluție
 
-## 0. Analiza cerinței (pe scurt)
+## 1. Diagrama System Context
 
-| Ce cere laboratorul | Puncte importante |
-| --- | --- |
-| 3 diagrame de arhitectură (Context, Container, Component) | Fiecare nivel „deschide" un singur element din nivelul de deasupra. Component deschide **doar** Dashboard Application. |
-| 3 diagrame de secvență (A, B, C) | Participanții sunt cei din Container (nume identice peste tot). Fiecare are `alt` pentru succes, respingere și defectare, plus ipoteze dedesubt. |
-| Folosește țintele de volum din Laboratorul 2 | Se folosește modelul din Lecția 3 (1,000 Utilizatori concurenți, 234 RPS stabil, 310 RPS la deschiderea pieței). **Dacă Laboratorul 2 conține alte cifre, acestea se înlocuiesc în secțiunea 1.** |
-| Cel mai mic set de containere | Nu se adaugă cache, coadă, replici sau serviciu de autentificare separat: nu există dovezi că volumul le cere. |
-| Furnizorul poate da date invalide, poate limita cererile sau poate fi căzut | Cerința centrală: **citirile Utilizatorului nu apelează furnizorul**. Doar un proces separat de sincronizare vorbește cu el. |
-
-### Decizii de proiectare luate (și motivul)
-
-1. **Market Data Collector este container separat** de Dashboard Application. Motive: (a) volumul către furnizor nu depinde de numărul de Utilizatori (1 cerere la 60 s, nu 234 RPS), (b) o defectare a furnizorului nu rupe răsfoirea, (c) doar Collector deține credențialele furnizorului, deci nu ajung niciodată în browser.
-2. **Dashboard Database** este singura stocare: Stocks, ultimul preț acceptat, istoric, Watchlist-uri, starea sincronizării. Este și punctul de adevăr pentru „datele acceptate".
-3. **Autentificarea rămâne în Dashboard Application** (sesiune verificată de un component `Identity Guard`). Un serviciu separat nu e justificat la 1,000 de Utilizatori.
-4. **Regulă de vechime:** un preț acceptat se afișează cu ora furnizorului și eticheta „întârziat" cât timp are cel mult **30 de minute** de la ora furnizorului. Peste limită: „indisponibil". Nu se afișează niciodată zero și un preț vechi nu e prezentat ca fiind curent.
-
----
-
-## 1. Volum de lucru folosit (ipoteze)
-
-Ipoteze preluate din modelul Dashboard al Lecției 3. Cifrele pentru scrieri sunt o ipoteză a proiectării.
-
-| Flux | Calcul | Rezultat |
-| --- | --- | --- |
-| Overview | `1,000 x 0.70 / 30` | 23.33 RPS |
-| Stock price | `1,000 x 0.20 x 1` | 200 RPS |
-| Watchlist read | `1,000 x 0.60 / 60` | 10 RPS |
-| **Citiri, regim stabil** | `23.33 + 200 + 10` | **233.33 -> 234 RPS** |
-| **Citiri, deschiderea pieței** | `(233.33 + 30 + 18) x 1.10` | **309.47 -> 310 RPS** |
-| Scrieri Watchlist (ipoteză) | `1,000 x 0.05 / 60` stabil, vârf aprox. 3x | aprox. 1 RPS stabil, 3 RPS vârf |
-| Cereri către furnizor | 1 sincronizare / 60 s (+ cel mult o reîncercare) | aprox. 1-2 cereri/minut, **independent de Utilizatori** |
-
-Observație: Stock price este aprox. 86% din citirile în regim stabil, deci este prima ipoteză de blocaj de măsurat. Nu e un blocaj dovedit.
-
-Ținte de calitate folosite în diagrame (exemple, de ajustat cu Lab 2):
-
-- Citire Stock price, în interiorul sistemului, la 310 RPS: p95 <= 300 ms.
-- Disponibilitate răsfoire/citire: 99.9% în 30 de zile (buget: 43 min 12 s).
-- Modificare Watchlist, observată de Client: p95 <= 1,500 ms.
-- Consistență Watchlist: după succes confirmat, următoarea citire a aceluiași Utilizator arată modificarea.
-
----
-
-## 2. Diagrama System Context
-
-Arată doar limita sistemului, actorii și sistemele externe. Fără părți interne.
+**Explicație:** diagrama arată sistemul ca o singură cutie, cu cine îl folosește și cu ce sistem extern comunică. Investitorul citește și modifică datele, iar Furnizorul de date de piață trimite prețurile întârziate. Furnizorul poate răspunde cu date invalide, poate limita cererile sau poate să nu răspundă, de aceea relația este etichetată cu toate aceste rezultate. Părțile interne nu apar.
 
 ```mermaid
 flowchart LR
-    user["Utilizator autentificat<br/>Person"]
-    dashboard["Stock Market Dashboard<br/>Software System"]
-    provider["Market Data Provider<br/>External System"]
+    I["Investitor<br/>Person"]
+    D["Personal Investment Dashboard<br/>Software System"]
+    F["Furnizor de date de piață<br/>External System"]
 
-    user -->|"Răsfoiește și filtrează Stocks, citește prețuri și istoric, administrează Watchlist privat"| dashboard
-    dashboard -->|"Cere periodic date de piață întârziate"| provider
-    provider -->|"Returnează date, date invalide, limitare a cererilor sau nu răspunde"| dashboard
+    I -->|"Adaugă și editează poziții, administrează Watchlist, citește portofoliul, prețurile și istoricul"| D
+    D -->|"Arată valoarea portofoliului, câștig/pierdere, prețuri cu ora furnizorului și starea datelor"| I
+    D -->|"Cere periodic prețuri și date de piață întârziate"| F
+    F -->|"Returnează date, date invalide, limitare a cererilor sau nu răspunde"| D
 ```
 
 ---
 
-## 3. Diagrama Container
+## 2. Diagrama Container
 
-Diagrama deschide limita sistemului: trei containere, fiecare cu o responsabilitate.
+**Explicație:** limita sistemului este deschisă și apar trei containere, fiecare cu o singură responsabilitate. Dashboard Application servește Investitorul. Market Data Collector este singurul care vorbește cu furnizorul și păstrează credențialele acestuia. Dashboard Database ține datele acceptate și datele private. Cele două aplicații comunică doar prin baza de date, deci o citire a Investitorului nu cere niciodată o cerere nouă către furnizor, iar o defectare a furnizorului nu oprește răsfoirea.
 
 ```mermaid
 flowchart LR
-    user["Utilizator autentificat<br/>Person"]
-    provider["Market Data Provider<br/>External System"]
+    I["Investitor<br/>Person"]
+    F["Furnizor de date de piață<br/>External System"]
 
-    subgraph boundary["Stock Market Dashboard"]
-        app["Dashboard Application<br/>Container: aplicație web<br/>Servește UI și API, verifică identitatea, citește date acceptate, administrează Watchlist"]
+    subgraph boundary["Personal Investment Dashboard"]
+        app["Dashboard Application<br/>Container: aplicație web<br/>Servește UI și API, verifică identitatea, citește date acceptate, administrează portofoliul și Watchlist-ul"]
         collector["Market Data Collector<br/>Container: proces programat<br/>Preia, validează și acceptă date de piață, deține credențialele furnizorului"]
-        db[("Dashboard Database<br/>Container: bază de date<br/>Stocks, prețuri acceptate, istoric, Watchlist-uri, stare sincronizare")]
+        db[("Dashboard Database<br/>Container: bază de date<br/>Stocks, prețuri acceptate, istoric, poziții, Watchlist-uri, stare sincronizare")]
     end
 
-    user -->|"HTTPS: răsfoiește Stocks, citește prețuri, modifică Watchlist"| app
-    app -->|"Citește Stocks, prețuri, istoric și Watchlist, scrie modificări Watchlist"| db
-    collector -->|"HTTPS: cere date întârziate, folosind credențiale păstrate pe server"| provider
+    I -->|"HTTPS: răsfoiește Stocks, citește prețuri și portofoliu, modifică poziții și Watchlist"| app
+    app -->|"Citește Stocks, prețuri, istoric, poziții și Watchlist, scrie modificări ale pozițiilor și Watchlist-ului"| db
+    collector -->|"HTTPS: cere date întârziate, cu credențiale păstrate pe server"| F
     collector -->|"Scrie datele acceptate și starea sincronizării într-o tranzacție"| db
 ```
 
-**De ce acest set minim:**
-
-- Dashboard Application nu apelează niciodată furnizorul: o citire a Utilizatorului nu cere o cerere nouă către furnizor.
-- Collector și Dashboard Application comunică **doar prin Dashboard Database**, deci nu depind unul de altul la execuție.
-- Nu se adaugă cache, coadă sau replici: 310 RPS de citire și aprox. 3 RPS de scriere nu justifică încă aceste mecanisme. Lipsesc măsurătorile care le-ar susține.
-
 ---
 
-## 4. Diagrama Component (Dashboard Application)
+## 3. Diagrama Component (Dashboard Application)
 
-Se deschide numai Dashboard Application. Componentele sunt responsabilități, nu clase sau funcții. Market Data Collector nu apare, fiind container lansat separat, iar furnizorul nu comunică direct cu aplicația.
+**Explicație:** se deschide numai Dashboard Application și se arată responsabilitățile principale din interiorul ei: primirea cererilor, verificarea identității și a intrării, citirea Stocks și a prețurilor, administrarea portofoliului și a Watchlist-ului, accesul la date. Doar Investitorul și Dashboard Database comunică direct cu aceste componente. Market Data Collector și furnizorul nu apar, deoarece Collector este container lansat separat, iar furnizorul nu comunică direct cu aplicația.
 
 ```mermaid
 flowchart LR
-    user["Utilizator autentificat<br/>Person"]
+    I["Investitor<br/>Person"]
     db[("Dashboard Database<br/>Container")]
 
     subgraph app["Dashboard Application"]
-        handler["Request Handler<br/>Primește cereri HTTPS, rutează și formatează răspunsuri și erori"]
-        guard["Identity Guard<br/>Verifică sesiunea și oferă identitatea Utilizatorului"]
-        validator["Input Validator<br/>Verifică simbolul, filtrele și parametrii"]
-        browse["Stock Browse Service<br/>Răsfoire și filtrare Stocks"]
-        price["Price and History Service<br/>Preț și istoric, aplică regula de vechime de 30 min"]
+        handler["Request Handler<br/>Primește cererile HTTPS, le rutează și formatează răspunsuri și erori"]
+        guard["Identity Guard<br/>Verifică sesiunea și oferă identitatea Investitorului"]
+        validator["Input Validator<br/>Verifică simbolul, filtrele, cantitatea și prețul de achiziție"]
+        browse["Stock Browse Service<br/>Search și Filter pe Stocks acceptate"]
+        price["Price and History Service<br/>Preț și istoric, stările curent, învechit, indisponibil după regula de 20 min"]
+        portfolio["Portfolio Service<br/>Poziții, valoare, câștig/pierdere, exclude pozițiile cu preț indisponibil"]
         watch["Watchlist Service<br/>Autorizează proprietarul și modifică Watchlist-ul"]
         gateway["Data Gateway<br/>Singurul acces la Dashboard Database"]
     end
 
-    user -->|"HTTPS"| handler
+    I -->|"HTTPS"| handler
     handler -->|"Verifică sesiunea"| guard
     handler -->|"Validează intrarea"| validator
-    handler -->|"Cereri de răsfoire"| browse
-    handler -->|"Cereri de preț și istoric"| price
-    handler -->|"Cereri Watchlist"| watch
+    handler -->|"Search și Filter"| browse
+    handler -->|"Preț și istoric"| price
+    handler -->|"Portofoliu"| portfolio
+    handler -->|"Watchlist"| watch
+    portfolio -->|"Cere prețul fiecărei poziții"| price
     browse -->|"Citește Stocks"| gateway
-    price -->|"Citește prețuri acceptate"| gateway
+    price -->|"Citește prețuri acceptate și istoric"| gateway
+    portfolio -->|"Citește și scrie poziții"| gateway
     watch -->|"Citește și scrie Watchlist"| gateway
     gateway -->|"Interogări și tranzacții"| db
 ```
 
 ---
 
-## 5. Diagrame de secvență
+## 4. Diagrame de secvență
 
 ### A. Sincronizează datele de piață
+
+**Explicație:** fluxul arată cum ajung datele noi în sistem. Un timer pornește sincronizarea, Collector cere datele, le validează și le scrie în bază într-o singură tranzacție. Timeout-ul, limitarea cererilor, datele invalide și defectarea bazei sunt tratate fără a modifica datele acceptate anterior. Datele noi devin vizibile abia după commit.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Collector as Market Data Collector
-    participant Provider as Market Data Provider
+    participant Furnizor as Furnizor de date de piață
     participant DB as Dashboard Database
 
     Note over Collector: Pornire: timer intern la fiecare 60 s
-    Collector->>DB: Citește lista Stocks cunoscute și ultima oră acceptată
-    Collector->>Provider: Cere prețuri întârziate (credențiale păstrate pe server)
+    Collector->>DB: Citește lista Stocks acceptate și ora furnizorului ultimului lot acceptat
+    Collector->>Furnizor: Cere prețurile întârziate pentru toate Stocks acceptate (credențiale păstrate pe server)
 
     alt Timeout de 5 s
-        Note over Collector,Provider: O singură reîncercare după 2 s
+        Note over Collector,Furnizor: O singură reîncercare după 2 s
         Collector->>Collector: Dacă reîncercarea eșuează, marchează sincronizarea eșuată
     else Limitare a cererilor (429)
-        Provider-->>Collector: 429 și Retry-After
+        Furnizor-->>Collector: 429 și Retry-After
         Collector->>Collector: Nu reîncearcă înainte de Retry-After, sare ciclul curent
     else Răspuns primit
-        Provider-->>Collector: Lot de prețuri cu ora furnizorului
-        Collector->>Collector: Validează schema, simbolul cunoscut, prețul pozitiv, ora nu mai veche decât cea acceptată
+        Furnizor-->>Collector: Lot de prețuri cu ora furnizorului
+        Collector->>Collector: Validează schema, simbolul acceptat, prețul pozitiv, ora furnizorului nu mai veche decât cea acceptată
 
         alt Lot invalid sau peste 20% înregistrări invalide
             Collector->>Collector: Respinge tot lotul, înregistrează motivul, nu scrie nimic în DB
         else Lot acceptabil
-            Collector->>DB: Tranzacție: actualizează ultimul preț acceptat, adaugă istoric, marchează sincronizare reușită
+            Note over Collector: Înregistrările invalide sunt excluse, acele Stocks păstrează prețul acceptat anterior
+            Collector->>DB: Tranzacție: actualizează ultimul preț acceptat, ora furnizorului și ora sincronizării, marchează sincronizare reușită
 
             alt Scriere eșuată
                 DB-->>Collector: Eroare, rollback complet
@@ -168,124 +126,130 @@ sequenceDiagram
 
 **Ipoteze:**
 
-- Sincronizarea rulează la 60 s. Furnizorul oferă date întârziate (aprox. 15 min), deci o frecvență mai mare nu aduce date mai noi.
-- Datele devin vizibile citirilor **numai după commit**. Un lot parțial scris nu este vizibil (tranzacție atomică).
-- Înregistrările invalide sunt: simbol necunoscut, preț lipsă sau <= 0, schemă greșită, oră mai veche decât cea deja acceptată. Peste 20% invalide, tot lotul este respins (probabil defect la furnizor).
-- La eșec (timeout, 429, lot invalid, DB), **ultimele date acceptate rămân** și continuă să fie servite cu eticheta de întârziere, până la limita de 30 min de la ora furnizorului. Apoi citirea răspunde „indisponibil".
-- Cheia furnizorului este doar în mediul serverului Collector. Nu ajunge în browser, în Dashboard Application sau în răspunsuri.
-- Eșecurile se înregistrează în log și în starea sincronizării, pentru alertare.
+- Sincronizarea rulează la 60 s pentru toate cele 5,700 Stocks, într-un singur lot. Furnizorul oferă date întârziate cu aproximativ 15 min, deci o frecvență mai mare nu aduce date mai noi.
+- Datele devin vizibile citirilor **numai după commit**. Un lot parțial scris nu este vizibil.
+- Sunt invalide: simbol necunoscut, preț lipsă sau mai mic sau egal cu zero, schemă greșită, oră a furnizorului mai veche decât cea deja acceptată. Peste 20% invalide, tot lotul este respins.
+- **La eșec** (timeout, limitare, lot invalid, defectare a bazei), datele acceptate anterior rămân neschimbate. Ele se servesc mai departe cu eticheta potrivită vechimii (curent, învechit, apoi indisponibil după 20 min). Nu se înlocuiește nimic cu zero.
+- Cheia furnizorului există doar în mediul Market Data Collector. Nu ajunge în browser, în Dashboard Application sau în răspunsuri.
+- Eșecurile se înregistrează în log și în starea sincronizării.
 
 ---
 
 ### B. Citește prețul unui Stock
 
+**Explicație:** fluxul arată ce se întâmplă când Investitorul cere un preț. Se verifică întâi identitatea și simbolul, apoi se citește ultimul preț acceptat din bază. Rezultatul afișat depinde de vechimea lui: curent, învechit sau indisponibil. Lipsa prețului sau o defectare a stocării dau un rezultat explicit, niciodată zero. Citirea nu apelează furnizorul.
+
 ```mermaid
 sequenceDiagram
     autonumber
-    participant User as Utilizator autentificat
+    participant Investitor as Investitor
     participant App as Dashboard Application
     participant DB as Dashboard Database
 
-    User->>App: Cere prețul unui Stock (simbol, sesiune)
+    Investitor->>App: Cere prețul unui Stock (simbol, sesiune)
     App->>App: Verifică sesiunea (Identity Guard)
 
     alt Sesiune lipsă sau expirată
-        App-->>User: 401 Autentificare necesară
+        App-->>Investitor: 401 Autentificare necesară
     else Sesiune validă
         App->>App: Validează simbolul (Input Validator)
 
         alt Simbol invalid
-            App-->>User: 400 Simbol invalid
+            App-->>Investitor: 400 Simbol invalid
         else Simbol valid
             App->>DB: Citește Stock-ul și ultimul preț acceptat
 
             alt Defectare a stocării sau timeout
                 DB-->>App: Eroare
-                App-->>User: 503 Temporar indisponibil (fără zero, fără preț presupus)
+                App-->>Investitor: 503 Temporar indisponibil (fără zero, fără preț presupus)
             else DB răspunde
                 DB-->>App: Stock și ultimul preț acceptat, dacă există
 
-                alt Stock inexistent
-                    App-->>User: 404 Stock necunoscut
-                else Preț lipsă
-                    App-->>User: Preț indisponibil
-                else Preț mai vechi de 30 min
-                    App-->>User: Preț indisponibil, date prea vechi
-                else Preț în limita de vechime
-                    App-->>User: Preț, ora furnizorului și eticheta Întârziat
+                alt Stock inexistent în domeniul acceptat
+                    App-->>Investitor: 404 Stock necunoscut
+                else Preț lipsă sau Stock delistat
+                    App-->>Investitor: Preț indisponibil
+                else Vechime peste 20 min de la ora furnizorului
+                    App-->>Investitor: Preț indisponibil, date prea vechi
+                else Vechime între 16 și 20 min
+                    App-->>Investitor: Preț cu ora furnizorului și starea Învechit
+                else Vechime sub 16 min
+                    App-->>Investitor: Preț cu ora furnizorului și eticheta Întârziat 15 min
                 end
             end
         end
     end
 
-    Note over User,DB: Nicio cerere către Market Data Provider în acest flux
+    Note over Investitor,DB: Nicio cerere către Furnizorul de date de piață în acest flux
 ```
 
 **Ipoteze:**
 
-- **O citire a Utilizatorului NU cere o cerere nouă către furnizor.** Citește doar ultimul preț acceptat din Dashboard Database, scris de Market Data Collector.
-- Limita maximă de vechime este 30 min față de ora furnizorului (aprox. 15 min întârziere normală + marjă pentru 1-2 sincronizări ratate).
-- Un preț vechi peste limită nu se afișează ca preț curent, iar lipsa unui preț nu se afișează ca zero.
-- Ținta: p95 <= 300 ms la 310 RPS. O defectare a stocării dă 503, nu un rezultat inventat.
+- **O citire a Investitorului NU cere o cerere nouă către furnizor.** Citește doar ultimul preț acceptat din Dashboard Database, scris de Market Data Collector.
+- Un preț este acceptat pentru afișare cel mult 20 min de la ora furnizorului, altfel este indisponibil. Pragul de 16 min separă „curent" de „învechit" (15 min întârziere normală plus un ciclu de sincronizare de 60 s).
+- Fiecare preț afișat poartă ora furnizorului. Lipsa unui preț nu se afișează ca zero, iar un preț vechi nu se prezintă ca fiind curent.
+- Același tipar se aplică fiecărei poziții din portofoliu: o poziție cu preț indisponibil este arătată explicit și exclusă din total, iar restul portofoliului rămâne vizibil.
+- O defectare a stocării dă 503, nu un rezultat inventat.
 
 ---
 
 ### C. Modifică un Watchlist privat
 
-Operația exemplu este adăugarea unui Stock în Watchlist-ul propriu.
+**Explicație:** fluxul arată cum se modifică în siguranță o listă privată. Se verifică în ordine identitatea, intrarea și permisiunea, abia apoi se scrie în bază. O încercare asupra listei altui Investitor este respinsă. Succesul se raportează doar după ce scrierea este confirmată, iar următoarea citire a aceluiași Investitor arată modificarea.
+
+Operația exemplu: adăugarea unui Stock în Watchlist-ul propriu. Eliminarea urmează același flux.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant User as Utilizator autentificat
+    participant Investitor as Investitor
     participant App as Dashboard Application
     participant DB as Dashboard Database
 
-    User->>App: Adaugă un Stock în Watchlist (simbol, sesiune)
+    Investitor->>App: Adaugă un Stock în Watchlist (simbol, sesiune)
     App->>App: Verifică sesiunea (Identity Guard)
 
     alt Sesiune lipsă sau expirată
-        App-->>User: 401 Autentificare necesară
+        App-->>Investitor: 401 Autentificare necesară
     else Sesiune validă
         App->>App: Validează simbolul și cererea (Input Validator)
 
-        alt Intrare invalidă sau Stock inexistent
-            App-->>User: 400 sau 404, nicio modificare
+        alt Intrare invalidă sau Stock în afara domeniului acceptat
+            App-->>Investitor: 400 sau 404, nicio modificare
         else Intrare validă
-            App->>App: Autorizează: proprietarul Watchlist-ului este Utilizatorul din sesiune
+            App->>App: Autorizează: proprietarul Watchlist-ului este Investitorul din sesiune
 
-            alt Încercare neautorizată (Watchlist al altui Utilizator)
-                App-->>User: 403 Interzis, nicio scriere, evenimentul se înregistrează
+            alt Încercare neautorizată (Watchlist al altui Investitor)
+                App-->>Investitor: 403 Interzis, nicio scriere, evenimentul se înregistrează
             else Autorizat
-                App->>DB: Scrie intrarea în Watchlist-ul Utilizatorului din sesiune (idempotent)
+                App->>DB: Scrie intrarea în Watchlist-ul Investitorului din sesiune (idempotent)
 
                 alt Defectare a stocării
                     DB-->>App: Eroare, nicio modificare păstrată
-                    App-->>User: 503 Nu s-a salvat, încearcă din nou
+                    App-->>Investitor: 503 Nu s-a salvat, se poate reîncerca
                 else Scriere reușită
                     DB-->>App: Commit confirmat
                     Note over App,DB: PUNCT DE SUCCES: doar după commit confirmat
-                    App-->>User: 200 Stock adăugat
+                    App-->>Investitor: 200 Stock adăugat
                 end
             end
         end
     end
 
-    Note over User,DB: Următoarea citire a aceluiași Utilizator
-    User->>App: Citește Watchlist-ul
-    App->>DB: Citește Watchlist-ul Utilizatorului din sesiune
+    Note over Investitor,DB: Următoarea citire a aceluiași Investitor, în aceeași sesiune
+    Investitor->>App: Citește Watchlist-ul
+    App->>DB: Citește Watchlist-ul Investitorului din sesiune
     DB-->>App: Lista, inclusiv Stock-ul adăugat
-    App-->>User: Watchlist cu Stock-ul nou
+    App-->>Investitor: Watchlist cu Stock-ul nou, fiecare preț cu starea lui
 ```
 
 **Ipoteze:**
 
-- Identitatea proprietarului vine **numai din sesiune**, nu din parametrii cererii. Dacă cererea indică Watchlist-ul altui Utilizator, răspunsul este 403 și nu se scrie nimic.
-- Verificările se fac în ordinea: identitate -> intrare -> permisiune -> scriere.
-- Succesul se raportează **doar după commit confirmat**. La defectare, Utilizatorul primește eroare, nu succes, și nu rămâne o modificare parțială.
-- Adăugarea este idempotentă: a adăuga același Stock a doua oară nu creează duplicat și nu dă eroare.
-- **Consistență (read-your-writes):** după un succes confirmat, următoarea citire a aceluiași Utilizator arată Stock-ul adăugat. Se citește din aceeași bază, fără replică sau cache care ar putea întârzia.
-- Watchlist-ul este privat: nicio citire nu returnează date ale altui Utilizator.
-- Ștergerea din Watchlist urmează același flux, cu aceeași regulă: la citirea următoare, Stock-ul nu mai apare.
+- Identitatea proprietarului vine **numai din sesiune**, nu din parametrii cererii. Dacă cererea indică Watchlist-ul altui Investitor, răspunsul este 403 și nu se scrie nimic.
+- Verificările se fac în ordinea: identitate, intrare, permisiune, scriere.
+- Succesul se raportează **doar după commit confirmat**. La defectare, Investitorul primește eroare, nu succes, și nu rămâne o modificare parțială.
+- Adăugarea este idempotentă: același Stock adăugat a doua oară nu creează duplicat și nu dă eroare.
+- După un succes confirmat, următoarea citire a aceluiași Investitor, în aceeași sesiune, arată modificarea. Scrierea și citirea folosesc aceeași bază, fără replică sau cache care ar putea întârzia rezultatul.
+- Watchlist-ul este privat: nicio citire nu returnează datele altui Investitor.
 
 ---
